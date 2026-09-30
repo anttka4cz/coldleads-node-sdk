@@ -37,7 +37,7 @@ const sleep = (ms: number, signal?: AbortSignal) =>
     signal?.addEventListener("abort", () => (clearTimeout(t), reject(signal.reason)), { once: true });
   });
 
-// AbortSignal.any is Node 20.3+; combine by hand to keep Node 18 support.
+// Timeout and caller signal combined by hand (no AbortSignal.any), so the combination works the same on every runtime.
 function withTimeout(timeoutMs: number, outer?: AbortSignal): { signal: AbortSignal; timedOut: () => boolean; done: () => void } {
   const ctrl = new AbortController();
   let timedOut = false;

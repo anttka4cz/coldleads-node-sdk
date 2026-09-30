@@ -12,7 +12,7 @@ export interface ColdLeadsOptions {
   timeoutMs?: number;
   /** Retries for rate limits and, for GET requests, transient server or network errors (default 2). */
   maxRetries?: number;
-  /** Custom fetch implementation (tests, proxies). Defaults to the global fetch of Node 18+. */
+  /** Custom fetch implementation (tests, proxies). Defaults to the global fetch. */
   fetch?: FetchLike;
 }
 
@@ -74,9 +74,10 @@ export class VerifyResource {
   constructor(private readonly http: HttpClient) {}
 
   /**
-   * Verify one address (1 credit): syntax, disposable domain, role account, MX and a live SMTP mailbox check with
-   * catch-all detection. `budgetMs` (1000–30000) caps the server-side check; when it runs out the result is `risky`
-   * with reason `timeout`.
+   * Verify one address (1 credit): syntax, disposable domain, role account and MX records, plus an SMTP mailbox and
+   * catch-all check when the Cold Leads server can reach the recipient's mail server (otherwise reason
+   * `smtp_unreachable` and `catch_all: false` = not checked). `budgetMs` (1000–30000) caps the server-side check;
+   * when it runs out the result is `risky` with reason `timeout`.
    */
   email(email: string, options: { budgetMs?: number; signal?: AbortSignal } = {}): Promise<VerifyResult> {
     const addr = requireString(email, "email");
@@ -164,7 +165,7 @@ export class AgentResource {
     });
   }
 
-  /** Status by session id (with the claim token to collect the key once) or by owner e-mail (status only). */
+  /** Status by session id or by owner e-mail. Only a request with the claim token can collect the API key (once). */
   status(input: { sessionId?: string; ownerEmail?: string; claimToken?: string }, options: { signal?: AbortSignal } = {}): Promise<ProvisioningStatus> {
     if (!input?.sessionId && !input?.ownerEmail) throw new InvalidRequestError("invalid_argument: pass sessionId or ownerEmail", { status: 400, code: "invalid_argument" });
     return this.http.request<ProvisioningStatus>("GET", "/api/agent/status", {

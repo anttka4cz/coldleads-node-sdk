@@ -1,16 +1,17 @@
 # Cold Leads Node.js SDK
 
-Official Node.js client for the [Cold Leads](https://coldleads.app) API: e-mail verification with catch-all detection, e-mail finder, lead search in your CRM, and onboarding for AI agents with human-approved payment.
+Official Node.js client for the [Cold Leads](https://coldleads.app) API: e-mail verification, a pattern-based e-mail finder, search of contacts in your own Cold Leads CRM, and onboarding for AI agents with human-approved payment.
 
-- Zero runtime dependencies, Node.js 18.17+ (built-in `fetch`)
+- Zero runtime dependencies, Node.js 20+ (built-in `fetch`); CI tests Node 20 and 22
 - ESM and CommonJS, full TypeScript types
 - Typed errors, timeouts, safe automatic retries
 - Responses mirror the [REST API](https://coldleads.app/api/v1) ([OpenAPI](https://coldleads.app/api/v1/openapi.json))
 
 ```bash
-npm install @coldleads/sdk
-# before the first npm release: npm install github:anttka4cz/coldleads-node-sdk
+npm install github:anttka4cz/coldleads-node-sdk
 ```
+
+The package is not on npm; this command installs and builds it from GitHub, and you import it as `@coldleads/sdk`.
 
 ## Quick start
 
@@ -33,10 +34,12 @@ You need a **secret API key** (`sk_…`) from **Cold Leads → Settings → API 
 
 ```ts
 const r = await coldleads.verify.email("anna@acme.com", { budgetMs: 4000 });
-if (r.status === "valid" && !r.catch_all) send(r.email);
+if (r.status === "invalid") drop(r.email);        // bad syntax, no mail server or mailbox rejected
+else if (r.reasons.includes("ok")) send(r.email); // mailbox confirmed over SMTP, not accept-all
+else review(r);                                   // e.g. smtp_unreachable: domain accepts mail, mailbox not checked
 ```
 
-`budgetMs` (1,000–30,000) caps the live mailbox check on the server. When it runs out the result is `risky` with reason `timeout`, so interactive flows never hang.
+Syntax, disposable domains, role accounts and MX records are always checked. The SMTP mailbox and accept-all check runs only when Cold Leads can open an SMTP connection to the recipient's mail server; otherwise `reasons` contains `smtp_unreachable` and `catch_all` stays `false` (not checked). `budgetMs` (1,000–30,000) caps the whole server-side check; when it runs out the result is `risky` with reason `timeout`, so interactive flows never hang.
 
 ### Bulk verification (1 credit per address)
 
@@ -56,7 +59,9 @@ const found = await coldleads.find.email({ first: "Anna", last: "Novak", domain:
 // { email, confidence, method: "verified" | "pattern" | "none", catch_all, candidates }
 ```
 
-### Search leads in your CRM (free)
+The finder tries common address patterns (first.last, flast, …) on the domain. `method` is `verified` only when the SMTP check confirmed the mailbox; otherwise it is `pattern`, the most likely guess.
+
+### Search contacts in your CRM (free)
 
 ```ts
 const { leads } = await coldleads.leads.search({ domain: "acme.com", role: "sales", limit: 10 });
@@ -73,7 +78,7 @@ const { plan, limit, used, left } = await coldleads.credits.get();
 
 ## Agent onboarding (no key yet)
 
-An AI agent can set Cold Leads up for its human owner. The human reviews the Business plan on a secure Stripe page and decides whether to pay; the agent never pays.
+An AI agent can set Cold Leads up for its human owner. The human reviews the Business plan on a secure Stripe page and decides whether to pay. The API gives the agent no way to pay, and the agent is told never to open or pay the link.
 
 ```ts
 import ColdLeads from "@coldleads/sdk";
@@ -110,7 +115,7 @@ Every error extends `ColdLeadsError` with `status`, `code`, `hint` and the respo
 | `PermissionError` | 403 | `api_not_in_plan`, `account_suspended` |
 | `NotFoundError` | 404 | `not_found` |
 | `InvalidRequestError` | 400, 409, 413 | `email_required`, `account_exists`, `too_many` |
-| `RateLimitError` | 429 | `rate_limited` (`retryAfterSeconds`) |
+| `RateLimitError` | 429 | `rate_limited` (with `retryAfterSeconds`), `too_many_jobs` |
 | `ServerError` | 5xx | `http_502`, `gateway` |
 | `ConnectionError` | — | `network_error` |
 | `TimeoutError` | — | `timeout` |
@@ -134,7 +139,7 @@ try {
 | `timeoutMs` | 30,000 | per request |
 | `maxRetries` | 2 | exponential backoff with jitter |
 
-Rate limits (429) are retried for every call — the limit is checked before a credit is spent. Server errors (502/503/504) and network failures are retried only for GET requests, because a POST that reached the server may already have spent a credit. Onboarding (`provision`) is never retried. Every method accepts an `AbortSignal`.
+Rate limits (429) are retried for every call — the limit is checked before a credit is spent — after the Retry-After time the API sends (at most 30 seconds per attempt). Server errors (502/503/504) and network failures are retried only for GET requests, because a POST that reached the server may already have spent a credit. Onboarding (`provision`) is never retried. Every method accepts an `AbortSignal`.
 
 ## Configuration
 

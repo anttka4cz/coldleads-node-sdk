@@ -12,7 +12,7 @@ export interface VerifyResult {
   score: number;
   reasons: VerifyReason[];
   mx: string | null;
-  /** The domain accepts any address (accept-all); a mailbox cannot be confirmed individually. */
+  /** `true`: the mail server accepted a made-up address on this domain (accept-all). `false` also when the check did not run — see `reasons` (`smtp_unreachable`, `smtp_unknown`, `timeout`). */
   catch_all: boolean;
   disposable: boolean;
   /** Role account such as info@ or sales@. */

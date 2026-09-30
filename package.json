@@ -1,7 +1,7 @@
 {
   "name": "@coldleads/sdk",
   "version": "1.0.0",
-  "description": "Official Node.js SDK for Cold Leads (coldleads.app): e-mail verification with catch-all detection, e-mail finder, lead search and agent onboarding.",
+  "description": "Official Node.js SDK for the Cold Leads API (coldleads.app): e-mail verification, pattern-based e-mail finder, search of contacts in your own Cold Leads CRM, and AI-agent onboarding with human-approved payment.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -25,7 +25,7 @@
   ],
   "sideEffects": false,
   "engines": {
-    "node": ">=18.17"
+    "node": ">=20"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --clean --target node18",
@@ -38,7 +38,6 @@
     "coldleads",
     "email-verification",
     "email-validation",
-    "catch-all",
     "email-finder",
     "b2b",
     "crm",
