@@ -8,10 +8,10 @@ Official Node.js client for the [Cold Leads](https://coldleads.app) API: e-mail 
 - Responses mirror the [REST API](https://coldleads.app/api/v1) ([OpenAPI](https://coldleads.app/api/v1/openapi.json))
 
 ```bash
-npm install github:anttka4cz/coldleads-node-sdk
+npm install --allow-git=root github:anttka4cz/coldleads-node-sdk
 ```
 
-The package is not on npm; this command installs and builds it from GitHub, and you import it as `@coldleads/sdk`.
+The package is not on npm; this command installs and builds it from GitHub, and you import it as `@coldleads/sdk`. npm 12 blocks installs from git unless you allow them, which `--allow-git=root` does for this command; npm 10 accepts the flag too.
 
 ## Quick start
 
