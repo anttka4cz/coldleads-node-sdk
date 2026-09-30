@@ -1,0 +1,65 @@
+{
+  "name": "@coldleads/sdk",
+  "version": "1.0.0",
+  "description": "Official Node.js SDK for Cold Leads (coldleads.app): e-mail verification with catch-all detection, e-mail finder, lead search and agent onboarding.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean --target node18",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "coldleads",
+    "email-verification",
+    "email-validation",
+    "catch-all",
+    "email-finder",
+    "b2b",
+    "crm",
+    "leads",
+    "sdk",
+    "ai-agents"
+  ],
+  "homepage": "https://github.com/anttka4cz/coldleads-node-sdk#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anttka4cz/coldleads-node-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/anttka4cz/coldleads-node-sdk/issues"
+  },
+  "license": "MIT",
+  "author": "Anton Tkachenko",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
