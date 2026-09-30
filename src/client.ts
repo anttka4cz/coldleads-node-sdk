@@ -33,7 +33,7 @@ const sleep = (ms: number, signal?: AbortSignal) =>
  *
  * ```ts
  * const coldleads = new ColdLeads({ apiKey: process.env.COLDLEADS_API_KEY });
- * const r = await coldleads.verify.email("anna@acme.com");
+ * const r = await coldleads.verify.email("anna@example.com");
  * ```
  */
 export class ColdLeads {

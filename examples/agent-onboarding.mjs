@@ -1,9 +1,9 @@
-// node examples/agent-onboarding.mjs owner@acme.com
+// node examples/agent-onboarding.mjs owner@example.com
 // An agent without a key asks its human owner to approve Cold Leads and then receives the API key once.
 import ColdLeads from "@coldleads/sdk";
 
 const coldleads = new ColdLeads({ apiKey: "" });
-const p = await coldleads.agent.provision({ ownerEmail: process.argv[2] ?? "owner@acme.com", agentId: "SDK example agent" });
+const p = await coldleads.agent.provision({ ownerEmail: process.argv[2] ?? "owner@example.com", agentId: "SDK example agent" });
 console.log(`Ask the owner to review and pay: ${p.checkout_url}`);
 console.log(`Plan: ${p.plan.name}, ${p.plan.price} per month. Link valid until ${p.expires_at}.`);
 const { apiKey } = await coldleads.agent.waitForActivation(

@@ -1,8 +1,8 @@
-// node examples/verify.mjs anna@acme.com   (COLDLEADS_API_KEY in the environment)
+// node examples/verify.mjs anna@example.com   (COLDLEADS_API_KEY in the environment)
 import ColdLeads, { ColdLeadsError } from "@coldleads/sdk";
 
 const coldleads = new ColdLeads();
-const email = process.argv[2] ?? "anna@acme.com";
+const email = process.argv[2] ?? "anna@example.com";
 try {
   const r = await coldleads.verify.email(email, { budgetMs: 5000 });
   console.log(`${r.email}: ${r.status} (score ${r.score})${r.catch_all ? ", catch-all domain" : ""} — ${r.reasons.join(", ")}`);

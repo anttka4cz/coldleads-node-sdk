@@ -20,7 +20,7 @@ import ColdLeads from "@coldleads/sdk";
 
 const coldleads = new ColdLeads({ apiKey: process.env.COLDLEADS_API_KEY });
 
-const result = await coldleads.verify.email("anna@acme.com");
+const result = await coldleads.verify.email("anna@example.com");
 // { email, status: "valid" | "risky" | "invalid", score, reasons, catch_all, disposable, role, mx, checked_at, cached }
 ```
 
@@ -33,7 +33,7 @@ You need a **secret API key** (`sk_…`) from **Cold Leads → Settings → API 
 ### Verify an address (1 credit)
 
 ```ts
-const r = await coldleads.verify.email("anna@acme.com", { budgetMs: 4000 });
+const r = await coldleads.verify.email("anna@example.com", { budgetMs: 4000 });
 if (r.status === "invalid") drop(r.email);        // bad syntax, no mail server or mailbox rejected
 else if (r.reasons.includes("ok")) send(r.email); // mailbox confirmed over SMTP, not accept-all
 else review(r);                                   // e.g. smtp_unreachable: domain accepts mail, mailbox not checked
@@ -44,7 +44,7 @@ Syntax, disposable domains, role accounts and MX records are always checked. The
 ### Bulk verification (1 credit per address)
 
 ```ts
-const job = await coldleads.verify.bulk(["a@acme.com", "b@acme.com"], { name: "September list" });
+const job = await coldleads.verify.bulk(["a@example.com", "b@example.com"], { name: "September list" });
 const done = await coldleads.verify.waitForJob(job.id, {
   results: true,
   onProgress: (j) => console.log(`${j.done}/${j.total}`),
@@ -55,7 +55,7 @@ console.log(done.counts, done.results);
 ### Find an address by name and domain (1 credit)
 
 ```ts
-const found = await coldleads.find.email({ first: "Anna", last: "Novak", domain: "acme.com" });
+const found = await coldleads.find.email({ first: "Anna", last: "Novak", domain: "example.com" });
 // { email, confidence, method: "verified" | "pattern" | "none", catch_all, candidates }
 ```
 
@@ -64,7 +64,7 @@ The finder tries common address patterns (first.last, flast, …) on the domain.
 ### Search contacts in your CRM (free)
 
 ```ts
-const { leads } = await coldleads.leads.search({ domain: "acme.com", role: "sales", limit: 10 });
+const { leads } = await coldleads.leads.search({ domain: "example.com", role: "sales", limit: 10 });
 const reachable = leads.filter((l) => !l.do_not_contact);
 ```
 
@@ -85,12 +85,12 @@ import ColdLeads from "@coldleads/sdk";
 
 const coldleads = new ColdLeads(); // no key needed for onboarding
 
-const p = await coldleads.agent.provision({ ownerEmail: "owner@acme.com", agentId: "Acme Research Agent" });
+const p = await coldleads.agent.provision({ ownerEmail: "owner@example.com", agentId: "Acme Research Agent" });
 showToHuman(p.checkout_url); // and keep p.claim_token secret
 
 const { apiKey } = await coldleads.agent.waitForActivation({ sessionId: p.session_id, claimToken: p.claim_token });
 saveSecret("COLDLEADS_API_KEY", apiKey); // delivered exactly once; the client already uses it
-await coldleads.verify.email("anna@acme.com");
+await coldleads.verify.email("anna@example.com");
 ```
 
 Prefer a webhook to polling? Pass `callbackUrl` (public https) to `provision()`. Cold Leads POSTs `{ "event": "coldleads.account.activated", "session_id": … }` with an `X-Coldleads-Signature` header; the payload contains no secrets, so collect the key with `agent.status({ sessionId, claimToken })` afterwards:
