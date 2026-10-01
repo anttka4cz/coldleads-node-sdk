@@ -91,6 +91,36 @@ export interface Credits {
   left: number;
 }
 
+/** Common success envelope returned by hosted Cold Leads MCP tools through this SDK. */
+export type McpResult<T = Record<string, unknown>> = {
+  status: string;
+} & T;
+
+export interface CrmContact {
+  id: string; email: string; name: string; company: string; phone?: string; stage: string;
+  consent?: string; optedOut?: boolean; bounced?: boolean; do_not_contact?: boolean; tags?: string; notes?: string;
+}
+export interface ContactsResult { count: number; contacts: CrmContact[] }
+export interface ContactImportResult { added: number; skipped: number; imported: string[]; errors: { index: number; reason: string }[] }
+export interface ConversationResult { contact: Pick<CrmContact, "id" | "email" | "name"> & { optedOut: boolean }; messages: { direction: "in" | "out"; from: string; to: string; subject: string; text: string; at: string; intent?: string | null }[] }
+export interface TemplateResult { template: { id: string; name: string; subject: string; body: string; locale: string } }
+export interface TemplatesResult { count: number; templates: TemplateResult["template"][] }
+export interface CampaignResult { campaign: { id: string; name: string; status: string; templateId: string }; recipient_estimate: number; note: string }
+export interface CampaignsResult { count: number; campaigns: { id: string; name: string; templateId: string; status: string; recipients: number; createdAt: string }[] }
+export interface WorkspaceResult { workspace: Record<string, unknown> | null; account: Record<string, unknown> | null; counts: { contacts: number; templates: number; campaigns: number } }
+export interface WebsiteLeadCaptureResult { key: string; allowed_origin: string; endpoint: string; html: string; javascript: string; consent: "inquiry"; note: string }
+
+export interface ContactImportInput {
+  contacts: Array<{ email: string; name?: string; company?: string; phone?: string; tags?: string; notes?: string; consent?: "inquiry" | "b2b_outreach" }>;
+}
+export interface ContactUpdateInput {
+  contactId: string; name?: string; company?: string; phone?: string; stage?: string; tags?: string; notes?: string; optedOut?: true;
+}
+export interface SendContactMessageInput { contactId: string; message: string; subject?: string; confirmSend: true }
+export interface TemplateInput { templateId?: string; name: string; subject: string; body: string; locale?: string }
+export interface CampaignDraftInput { name: string; templateId: string; stage?: string; tag?: string; consent?: "inquiry" | "b2b_outreach" }
+export interface WebsiteLeadCaptureInput { site: string; name?: string }
+
 export interface Provisioning {
   status: "payment_required";
   /** Stripe Checkout link for the human owner. Show it; never pay it yourself. */

@@ -1,6 +1,6 @@
 # Cold Leads Node.js SDK
 
-Official Node.js client for the [Cold Leads](https://coldleads.app) API: e-mail verification, a pattern-based e-mail finder, search of contacts in your own Cold Leads CRM, and onboarding for AI agents with human-approved payment.
+Official Node.js client for the [Cold Leads](https://coldleads.app) API and CRM: e-mail verification, lead finding, contact import and management, conversations, templates, campaigns, website capture, and AI-agent onboarding.
 
 - Zero runtime dependencies, Node.js 20+ (built-in `fetch`); CI tests Node 20 and 22
 - ESM and CommonJS, full TypeScript types
@@ -69,6 +69,28 @@ const reachable = leads.filter((l) => !l.do_not_contact);
 ```
 
 Leads come from your own Cold Leads workspace; Cold Leads has no third-party lead database.
+
+### Contacts, conversations, templates and campaigns
+
+`coldleads.crm` exposes the account-scoped tools from the hosted MCP API. Parse CSV/XLSX files in your application and pass rows (up to 100 per import call); imports deduplicate, skip global do-not-contact records, and never send email. Use `inquiry` for website forms and `b2b_outreach` only where you have a lawful basis.
+
+```ts
+const imported = await coldleads.crm.importContacts({
+  contacts: [{ email: "person@example.com", name: "Ada", company: "Example", consent: "inquiry" }],
+});
+const contacts = await coldleads.crm.contacts({ query: "Example", limit: 20 });
+await coldleads.crm.updateContact({ contactId: "contact_id", tags: "webinar", stage: "lead" });
+const thread = await coldleads.crm.conversation("contact_id");
+
+const template = await coldleads.crm.saveTemplate({ name: "Welcome", subject: "Hello", body: "Hi {name}" });
+const draft = await coldleads.crm.createCampaignDraft({ name: "Welcome", templateId: template.template.id, consent: "inquiry" });
+// Review the audience/template with the user before launching.
+await coldleads.crm.launchCampaign(draft.campaign.id, { confirmLaunch: true });
+
+const websiteForm = await coldleads.crm.setupWebsiteLeadCapture({ site: "https://example.com" });
+```
+
+`coldleads.crm.sendMessage({ contactId, message, confirmSend: true })` sends one message only after the user approves its recipient and final text. Campaign sending also requires explicit review and confirmation. Workspace rules, content checks, unsubscribe and DNC safeguards still apply. Website submissions are marked `inquiry` and are not automatic cold-outreach consent. `coldleads.crm.workspace()` returns non-secret account and mailbox status.
 
 ### Credits
 

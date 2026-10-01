@@ -1,7 +1,7 @@
 {
   "name": "@coldleads/sdk",
   "version": "1.0.0",
-  "description": "Official Node.js SDK for the Cold Leads API (coldleads.app): e-mail verification, pattern-based e-mail finder, search of contacts in your own Cold Leads CRM, and AI-agent onboarding with human-approved payment.",
+  "description": "Official Node.js SDK for the Cold Leads API and CRM: e-mail verification, lead finding, contact import and management, conversations, templates, campaigns, website capture, and AI-agent onboarding.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

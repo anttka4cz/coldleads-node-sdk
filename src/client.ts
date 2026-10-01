@@ -1,7 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { ColdLeadsError, InvalidRequestError, TimeoutError } from "./errors.js";
 import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT_MS, HttpClient, type FetchLike } from "./http.js";
-import type { BulkVerifyJob, Credits, FindResult, LeadSearchResult, Provisioning, ProvisioningStatus, VerifyJob, VerifyResult } from "./types.js";
+import type { BulkVerifyJob, Credits, FindResult, LeadSearchResult, Provisioning, ProvisioningStatus, VerifyJob, VerifyResult, McpResult, ContactImportInput, ContactUpdateInput, WebsiteLeadCaptureInput, CampaignDraftInput, TemplateInput, SendContactMessageInput, ContactsResult, ContactImportResult, ConversationResult, TemplatesResult, TemplateResult, CampaignsResult, CampaignResult, WorkspaceResult, WebsiteLeadCaptureResult } from "./types.js";
 
 export interface ColdLeadsOptions {
   /** Secret API key (sk_…). Defaults to process.env.COLDLEADS_API_KEY. Not needed for agent onboarding. */
@@ -53,6 +53,7 @@ export class ColdLeads {
   readonly leads: LeadsResource;
   readonly credits: CreditsResource;
   readonly agent: AgentResource;
+  readonly crm: CrmResource;
 
   constructor(options: ColdLeadsOptions = {}) {
     const fetchImpl = options.fetch ?? ((input: string, init: RequestInit) => globalThis.fetch(input, init));
@@ -68,6 +69,7 @@ export class ColdLeads {
     this.leads = new LeadsResource(this.http);
     this.credits = new CreditsResource(this.http);
     this.agent = new AgentResource(this.http, (key) => this.setApiKey(key));
+    this.crm = new CrmResource(this.http);
   }
 
   /** Replace the API key (for example with the key returned by agent onboarding). */
@@ -77,6 +79,75 @@ export class ColdLeads {
 
   get hasApiKey(): boolean {
     return this.http.config.apiKey.length > 0;
+  }
+}
+
+/** Account-scoped CRM, inbox, campaign, template and website-capture tools served by Cold Leads MCP. */
+export class CrmResource {
+  private sequence = 0;
+  constructor(private readonly http: HttpClient) {}
+
+  private async call<T extends object = Record<string, unknown>>(tool: string, args: Record<string, unknown> = {}, options: { signal?: AbortSignal } = {}): Promise<McpResult<T>> {
+    const rpc = await this.http.request<{ result?: { content?: Array<{ type: string; text?: string }>; isError?: boolean }; error?: { message?: string } }>("POST", "/api/mcp", {
+      body: { jsonrpc: "2.0", id: ++this.sequence, method: "tools/call", params: { name: tool, arguments: args } },
+      retry: "never", signal: options.signal,
+    });
+    if (rpc.error) throw new ColdLeadsError(rpc.error.message ?? "mcp_error", { status: 0, code: "mcp_error" });
+    const block = rpc.result?.content?.find((item) => item.type === "text" && item.text);
+    let result: Record<string, unknown> = {};
+    try { result = JSON.parse(block?.text ?? "{}"); } catch { throw new ColdLeadsError("invalid_mcp_response", { status: 0, code: "invalid_mcp_response" }); }
+    if (rpc.result?.isError || result.status === "error") {
+      const code = typeof result.error === "string" ? result.error : "mcp_tool_error";
+      throw new ColdLeadsError(typeof result.message === "string" ? result.message : code, { status: 0, code, body: result });
+    }
+    return result as McpResult<T>;
+  }
+
+  /** List/filter contacts already in your own workspace. */
+  contacts(input: { query?: string; stage?: string; tag?: string; limit?: number } = {}, options: { signal?: AbortSignal } = {}) {
+    return this.call<ContactsResult>("list_contacts", input, options);
+  }
+  /** Import parsed CSV/XLSX rows; up to 100 contacts per call. File parsing stays in your application. */
+  importContacts(input: ContactImportInput, options: { signal?: AbortSignal } = {}) {
+    return this.call<ContactImportResult>("import_contacts", input as unknown as Record<string, unknown>, options);
+  }
+  /** Update contact fields or mark opted out. Opt-out cannot be reversed through this method. */
+  updateContact(input: ContactUpdateInput, options: { signal?: AbortSignal } = {}) {
+    const { contactId, optedOut, ...fields } = input;
+    return this.call<{ contact: Record<string, unknown> }>("update_contact", { contact_id: requireString(contactId, "contactId"), ...fields, ...(optedOut ? { opted_out: true } : {}) }, options);
+  }
+  /** Read recent messages in a contact conversation. */
+  conversation(contactId: string, limit = 50, options: { signal?: AbortSignal } = {}) {
+    return this.call<ConversationResult>("get_conversation", { contact_id: requireString(contactId, "contactId"), limit }, options);
+  }
+  /** Send one email. Set confirm_send only after the user approved the final recipient and message. */
+  sendMessage(input: SendContactMessageInput, options: { signal?: AbortSignal } = {}) {
+    return this.call<{ contact_id: string; email: string; subject: string }>("send_contact_message", { contact_id: requireString(input.contactId, "contactId"), message: input.message, subject: input.subject, confirm_send: input.confirmSend }, options);
+  }
+  templates(limit = 50, options: { signal?: AbortSignal } = {}) {
+    return this.call<TemplatesResult>("list_templates", { limit }, options);
+  }
+  saveTemplate(input: TemplateInput, options: { signal?: AbortSignal } = {}) {
+    const { templateId, ...fields } = input;
+    return this.call<TemplateResult>("save_template", { ...fields, ...(templateId ? { template_id: templateId } : {}) }, options);
+  }
+  campaigns(limit = 50, options: { signal?: AbortSignal } = {}) {
+    return this.call<CampaignsResult>("list_campaigns", { limit }, options);
+  }
+  createCampaignDraft(input: CampaignDraftInput, options: { signal?: AbortSignal } = {}) {
+    const { templateId, ...fields } = input;
+    return this.call<CampaignResult>("create_campaign_draft", { ...fields, template_id: requireString(templateId, "templateId") }, options);
+  }
+  /** Launch only after the user reviewed and approved the campaign and recipient estimate. */
+  launchCampaign(campaignId: string, options: { confirmLaunch: true; signal?: AbortSignal }) {
+    return this.call<{ campaign_id: string; recipient_estimate: number; note: string }>("launch_campaign", { campaign_id: requireString(campaignId, "campaignId"), confirm_launch: options.confirmLaunch }, options);
+  }
+  workspace(options: { signal?: AbortSignal } = {}) {
+    return this.call<WorkspaceResult>("get_workspace_info", {}, options);
+  }
+  /** Create a public-only lead-form key. The key is returned once and should only be embedded in the site's form. */
+  setupWebsiteLeadCapture(input: WebsiteLeadCaptureInput, options: { signal?: AbortSignal } = {}) {
+    return this.call<WebsiteLeadCaptureResult>("setup_website_lead_capture", { site: input.site, ...(input.name ? { name: input.name } : {}) }, options);
   }
 }
 

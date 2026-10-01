@@ -1,4 +1,4 @@
-export { ColdLeads, verifyCallbackSignature, VerifyResource, FindResource, LeadsResource, CreditsResource, AgentResource, type ColdLeadsOptions } from "./client.js";
+export { ColdLeads, verifyCallbackSignature, VerifyResource, FindResource, LeadsResource, CreditsResource, AgentResource, CrmResource, type ColdLeadsOptions } from "./client.js";
 export {
   ColdLeadsError,
   AuthenticationError,
