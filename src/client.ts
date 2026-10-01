@@ -24,8 +24,18 @@ const requireString = (value: unknown, name: string): string => {
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
     if (signal?.aborted) return reject(signal.reason);
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener("abort", () => (clearTimeout(t), reject(signal.reason)), { once: true });
+    let t: ReturnType<typeof setTimeout>;
+    const onAbort = () => {
+      clearTimeout(t);
+      signal?.removeEventListener("abort", onAbort);
+      reject(signal?.reason);
+    };
+    t = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) onAbort();
   });
 
 /**
