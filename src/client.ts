@@ -1,7 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { ColdLeadsError, InvalidRequestError, TimeoutError } from "./errors.js";
 import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT_MS, HttpClient, type FetchLike } from "./http.js";
-import type { BulkVerifyJob, Credits, FindResult, LeadSearchResult, Provisioning, ProvisioningStatus, VerifyJob, VerifyResult, McpResult, ContactImportInput, ContactUpdateInput, WebsiteLeadCaptureInput, CampaignDraftInput, TemplateInput, SendContactMessageInput, ContactsResult, ContactImportResult, ConversationResult, TemplatesResult, TemplateResult, CampaignsResult, CampaignResult, WorkspaceResult, WebsiteLeadCaptureResult } from "./types.js";
+import type { BulkVerifyJob, Credits, FindResult, LeadSearchResult, Provisioning, ProvisioningStatus, VerifyJob, VerifyResult, McpResult, ContactImportInput, ContactUpdateInput, WebsiteLeadCaptureInput, CampaignDraftInput, TemplateInput, SendContactMessageInput, ContactsResult, ContactImportResult, ConversationResult, TemplatesResult, TemplateResult, CampaignsResult, CampaignResult, WorkspaceResult, WebsiteLeadCaptureResult, LeadRef, LeadContextResult, NextActionsResult, FollowUpInput, FollowUpResult, ActivityResult } from "./types.js";
 
 export interface ColdLeadsOptions {
   /** Secret API key (sk_…). Defaults to process.env.COLDLEADS_API_KEY. Not needed for agent onboarding. */
@@ -83,6 +83,12 @@ export class ColdLeads {
 }
 
 /** Account-scoped CRM, inbox, campaign, template and website-capture tools served by Cold Leads MCP. */
+function leadArgs(ref: LeadRef): Record<string, string> {
+  if (ref && typeof ref.contactId === "string" && ref.contactId.trim()) return { contact_id: ref.contactId.trim() };
+  if (ref && typeof ref.email === "string" && ref.email.includes("@")) return { email: ref.email.trim() };
+  throw new InvalidRequestError("invalid_argument: pass contactId or email", { status: 400, code: "invalid_argument" });
+}
+
 export class CrmResource {
   private sequence = 0;
   constructor(private readonly http: HttpClient) {}
@@ -144,6 +150,27 @@ export class CrmResource {
   }
   workspace(options: { signal?: AbortSignal } = {}) {
     return this.call<WorkspaceResult>("get_workspace_info", {}, options);
+  }
+  /** Everything known about one lead in one call: identity, contactability, relationship, next action and the last messages. Read-only, free. */
+  leadContext(ref: LeadRef, options: { signal?: AbortSignal } = {}) {
+    return this.call<LeadContextResult>("get_lead_context", leadArgs(ref), options);
+  }
+  /** Replies waiting for an answer and follow-ups that are due — "what should I do next?". Read-only, free. */
+  nextActions(limit = 25, options: { signal?: AbortSignal } = {}) {
+    return this.call<NextActionsResult>("get_sales_next_actions", { limit }, options);
+  }
+  /** Set, move or clear a contact's next action (the follow-up date and note shown in the app). Never sends e-mail. */
+  scheduleFollowUp(input: FollowUpInput, options: { signal?: AbortSignal } = {}) {
+    const args: Record<string, unknown> = { ...leadArgs(input) };
+    if ("clear" in input && input.clear) args.clear = true;
+    else if ("inDays" in input && input.inDays !== undefined) args.in_days = input.inDays;
+    else if ("dueAt" in input && input.dueAt !== undefined) args.due_at = input.dueAt instanceof Date ? input.dueAt.toISOString() : input.dueAt;
+    if (input.note !== undefined) args.note = input.note;
+    return this.call<FollowUpResult>("schedule_follow_up", args, options);
+  }
+  /** Audit log of this workspace's API and MCP calls, newest first (no arguments or personal data). Read-only, free. */
+  activity(limit = 50, options: { signal?: AbortSignal } = {}) {
+    return this.call<ActivityResult>("get_agent_activity", { limit }, options);
   }
   /** Create a public-only lead-form key. The key is returned once and should only be embedded in the site's form. */
   setupWebsiteLeadCapture(input: WebsiteLeadCaptureInput, options: { signal?: AbortSignal } = {}) {

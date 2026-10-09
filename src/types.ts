@@ -150,3 +150,20 @@ export interface ProvisioningStatus {
   api_base?: string;
   message?: string;
 }
+
+/** A lead reference: the contact id or its e-mail address. */
+export type LeadRef = { contactId: string; email?: never } | { email: string; contactId?: never };
+export type ReplyClass = "positive" | "neutral" | "negative" | "unsubscribe" | "auto";
+export interface LeadContextResult {
+  lead: { id: string; email: string; name: string; company: string; phone: string; stage: string; source: string; tags: string; notes: string; created_at: string };
+  contactability: { do_not_contact: boolean; reasons: ("opted_out" | "bounced" | "do_not_contact_list" | "consent_withdrawn")[]; consent: string; email_verification: { status: string; score: number | null; reason: string | null; checked_at: string | null } | null; safe_to_contact: boolean };
+  relationship: { sent_messages: number; received_replies: number; campaign_templates_received: number; last_contacted_at: string | null; last_reply_at: string | null; last_reply_class: ReplyClass | null; awaiting_our_reply: boolean };
+  next_action: { action: "reply" | "close" | "follow_up" | "follow_up_later" | "none"; due_at: string | null; reason: string; source: "reply_waiting" | "scheduled" | "none" };
+  recent_messages: { direction: "in" | "out"; at: string; subject: string; text: string; reply_class: ReplyClass | null; channel: string }[];
+}
+export interface NextAction { contact_id: string; email: string; name: string; company: string; stage: string; action: "reply" | "close" | "follow_up"; priority: "high" | "medium" | "low"; reason: string; due_at: string | null }
+export interface NextActionsResult { count: number; actions: NextAction[]; reply_classes: Record<ReplyClass, { next_action: string; priority: string; meaning: string }> }
+export type FollowUpInput = LeadRef & ({ dueAt: string | Date; inDays?: never; clear?: never } | { inDays: number; dueAt?: never; clear?: never } | { clear: true; dueAt?: never; inDays?: never }) & { note?: string };
+export interface FollowUpResult { contact_id: string; next_action_due: string | null; note: string }
+export interface ActivityEntry { at: string; channel: "mcp_oauth" | "mcp_key" | "api"; operation: string; ok: boolean; status: number; error: string | null; ms: number }
+export interface ActivityResult { count: number; entries: ActivityEntry[] }

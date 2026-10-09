@@ -35,3 +35,30 @@ describe("SDK CRM/MCP resource", () => {
     expect(requests).toBe(2);
   });
 });
+
+describe("SDK agent sales memory", () => {
+  it("leadContext, nextActions, scheduleFollowUp and activity call the matching MCP tools", async () => {
+    const h = setup(async () => ok({ status: "success" }));
+    await h.client.crm.leadContext({ email: "jane@example.com" });
+    await h.client.crm.nextActions(10);
+    await h.client.crm.scheduleFollowUp({ contactId: "c1", inDays: 3, note: "send pricing" });
+    await h.client.crm.scheduleFollowUp({ email: "jane@example.com", dueAt: new Date("2026-10-14T09:00:00Z") });
+    await h.client.crm.scheduleFollowUp({ contactId: "c1", clear: true });
+    await h.client.crm.activity(5);
+    const params = h.calls.map((c) => JSON.parse(String(c.init.body)).params);
+    expect(params).toEqual([
+      { name: "get_lead_context", arguments: { email: "jane@example.com" } },
+      { name: "get_sales_next_actions", arguments: { limit: 10 } },
+      { name: "schedule_follow_up", arguments: { contact_id: "c1", in_days: 3, note: "send pricing" } },
+      { name: "schedule_follow_up", arguments: { email: "jane@example.com", due_at: "2026-10-14T09:00:00.000Z" } },
+      { name: "schedule_follow_up", arguments: { contact_id: "c1", clear: true } },
+      { name: "get_agent_activity", arguments: { limit: 5 } },
+    ]);
+  });
+
+  it("refuses a lead reference without contactId or email before any request", async () => {
+    const h = setup(async () => ok({ status: "success" }));
+    expect(() => h.client.crm.leadContext({} as never)).toThrow(/contactId or email/);
+    expect(h.calls).toHaveLength(0);
+  });
+});

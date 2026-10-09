@@ -92,6 +92,25 @@ const websiteForm = await coldleads.crm.setupWebsiteLeadCapture({ site: "https:/
 
 `coldleads.crm.sendMessage({ contactId, message, confirmSend: true })` sends one message only after the user approves its recipient and final text. Campaign sending also requires explicit review and confirmation. Workspace rules, content checks, unsubscribe and DNC safeguards still apply. Website submissions are marked `inquiry` and are not automatic cold-outreach consent. `coldleads.crm.workspace()` returns non-secret account and mailbox status.
 
+### Sales memory for agents: context, next actions, follow-ups
+
+An agent that continues work across sessions can ask Cold Leads what to do next, read everything about one lead in one call, and record the next step. These calls are free and never send e-mail.
+
+```js
+const { actions } = await coldleads.crm.nextActions(20);
+// [{ contact_id, action: "reply" | "close" | "follow_up", priority: "high" | "medium" | "low", reason, due_at }, …]
+
+const ctx = await coldleads.crm.leadContext({ email: "jane@example.com" });
+// ctx.contactability.safe_to_contact, ctx.relationship.last_reply_class, ctx.next_action, ctx.recent_messages
+
+await coldleads.crm.scheduleFollowUp({ contactId: ctx.lead.id, inDays: 3, note: "send pricing" });
+await coldleads.crm.scheduleFollowUp({ contactId: ctx.lead.id, clear: true }); // done
+
+const log = await coldleads.crm.activity(20); // this workspace's API and MCP calls, no personal data
+```
+
+Reply classes are `positive`, `neutral`, `negative`, `unsubscribe` and `auto`; an unsubscribe reply opts the contact out automatically. REST equivalents: `GET /api/v1/leads/context`, `GET /api/v1/next-actions`, `POST /api/v1/follow-ups`, `GET /api/v1/activity`.
+
 ### Credits
 
 ```ts
