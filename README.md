@@ -11,7 +11,7 @@ Official Node.js client for the [Cold Leads](https://coldleads.app/developers?ut
 npm install @coldleads/sdk
 ```
 
-Want to see the workflow before getting a key? The no-key MCP demo (`https://coldleads.app/api/mcp/demo`) and the reference agent [cold-leads-ai-sales-agent](https://github.com/anttka4cz/cold-leads-ai-sales-agent) run against sample data and never send e-mail.
+Want to see the workflow before getting a key? The no-key MCP demo (`https://coldleads.app/api/mcp/demo`) and the reference agent [cold-leads-ai-sales-agent](https://github.com/anttka4cz/cold-leads-ai-sales-agent) run against sample data and never send e-mail. A demo session lasts 24 hours from its start and holds at most 10 contacts (including 4 samples), 1 template of your own and 1 campaign draft; see the [demo limits](https://github.com/anttka4cz/mcp-server-coldleads#try-it-without-a-key).
 
 ## Quick start
 
