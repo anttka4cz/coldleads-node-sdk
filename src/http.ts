@@ -1,6 +1,6 @@
 import { ColdLeadsError, ConnectionError, errorFromResponse, AuthenticationError, TimeoutError, type ErrorBody } from "./errors.js";
 
-export const VERSION = "1.0.0";
+export const VERSION = "1.0.1";
 export const DEFAULT_BASE_URL = "https://coldleads.app";
 export const DEFAULT_TIMEOUT_MS = 30_000;
 export const DEFAULT_MAX_RETRIES = 2;
