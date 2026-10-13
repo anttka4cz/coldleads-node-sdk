@@ -1,6 +1,6 @@
 # Cold Leads Node.js SDK
 
-Official Node.js client for the [Cold Leads](https://coldleads.app) API and CRM: e-mail verification, lead finding, contact import and management, conversations, templates, campaigns, website capture, and AI-agent onboarding.
+Official Node.js client for the [Cold Leads](https://coldleads.app/developers?utm_source=github&utm_medium=readme&utm_campaign=node-sdk) API and CRM: e-mail verification, an e-mail finder (name + domain), contact import and management, conversations, templates, campaigns, the reply and follow-up queue, website capture, and AI-agent onboarding.
 
 - Zero runtime dependencies, Node.js 20+ (built-in `fetch`); CI tests Node 20 and 22
 - ESM and CommonJS, full TypeScript types
@@ -8,10 +8,10 @@ Official Node.js client for the [Cold Leads](https://coldleads.app) API and CRM:
 - Responses mirror the [REST API](https://coldleads.app/api/v1) ([OpenAPI](https://coldleads.app/api/v1/openapi.json))
 
 ```bash
-npm install --allow-git=root github:anttka4cz/coldleads-node-sdk
+npm install @coldleads/sdk
 ```
 
-The package is not on npm; this command installs and builds it from GitHub, and you import it as `@coldleads/sdk`. npm 12 blocks installs from git unless you allow them, which `--allow-git=root` does for this command; npm 10 accepts the flag too.
+Want to see the workflow before getting a key? The no-key MCP demo (`https://coldleads.app/api/mcp/demo`) and the reference agent [cold-leads-ai-sales-agent](https://github.com/anttka4cz/cold-leads-ai-sales-agent) run against sample data and never send e-mail.
 
 ## Quick start
 
