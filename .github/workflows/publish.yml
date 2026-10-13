@@ -26,5 +26,5 @@ jobs:
       - run: npm ci
       - name: Check the tag matches package.json
         if: github.event_name == 'release'
-        run: test "v$(node -p 'require(\"./package.json\").version')" = "${GITHUB_REF_NAME}"
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
       - run: npm publish --access public
