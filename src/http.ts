@@ -1,6 +1,6 @@
 import { ColdLeadsError, ConnectionError, errorFromResponse, AuthenticationError, TimeoutError, type ErrorBody } from "./errors.js";
 
-export const VERSION = "1.0.1";
+export const VERSION = "1.1.0";
 export const DEFAULT_BASE_URL = "https://coldleads.app";
 export const DEFAULT_TIMEOUT_MS = 30_000;
 export const DEFAULT_MAX_RETRIES = 2;
@@ -20,6 +20,8 @@ export interface RequestOptions {
    * a POST that reached the server may already have spent a credit. "never": no retries.
    */
   retry?: "safe" | "never";
+  /** Called with the response headers of every attempt (for example to read Mcp-Session-Id). */
+  onHeaders?: (headers: Headers) => void;
 }
 
 export interface HttpConfig {
@@ -95,6 +97,7 @@ export class HttpClient {
         throw new ConnectionError(`network_error: ${e instanceof Error ? e.message : String(e)}`, { status: 0, code: "network_error", cause: e });
       }
       t.done();
+      opts.onHeaders?.(res.headers);
       let data: unknown = undefined;
       const text = await res.text();
       if (text) {

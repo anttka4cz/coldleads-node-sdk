@@ -91,6 +91,28 @@ export interface Credits {
   left: number;
 }
 
+/** A Cold Leads MCP tool as returned by `client.crm.tools()`. */
+export interface CrmTool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  sideEffect: "read" | "write" | "external_side_effect";
+  cost: string;
+  requiresApproval: boolean;
+}
+/** `client.crm.verifyEmail()` result (MCP verify_email). `validity` is null for unchecked addresses in demo mode. */
+export interface McpVerifyResult {
+  email: string;
+  validity: "valid" | "risky" | "invalid" | null;
+  catch_all: boolean | null;
+  score: number | null;
+  reasons: string[];
+  disposable: boolean;
+  role_account: boolean;
+  checks_skipped?: string[];
+  demo?: string;
+}
+
 /** Common success envelope returned by hosted Cold Leads MCP tools through this SDK. */
 export type McpResult<T = Record<string, unknown>> = {
   status: string;

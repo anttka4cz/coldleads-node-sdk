@@ -1,7 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { ColdLeadsError, InvalidRequestError, TimeoutError } from "./errors.js";
-import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT_MS, HttpClient, type FetchLike } from "./http.js";
-import type { BulkVerifyJob, Credits, FindResult, LeadSearchResult, Provisioning, ProvisioningStatus, VerifyJob, VerifyResult, McpResult, ContactImportInput, ContactUpdateInput, WebsiteLeadCaptureInput, CampaignDraftInput, TemplateInput, SendContactMessageInput, ContactsResult, ContactImportResult, ConversationResult, TemplatesResult, TemplateResult, CampaignsResult, CampaignResult, WorkspaceResult, WebsiteLeadCaptureResult, LeadRef, LeadContextResult, NextActionsResult, FollowUpInput, FollowUpResult, ActivityResult } from "./types.js";
+import { DEFAULT_BASE_URL, DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT_MS, HttpClient, VERSION, type FetchLike } from "./http.js";
+import type { CrmTool, McpVerifyResult, BulkVerifyJob, Credits, FindResult, LeadSearchResult, Provisioning, ProvisioningStatus, VerifyJob, VerifyResult, McpResult, ContactImportInput, ContactUpdateInput, WebsiteLeadCaptureInput, CampaignDraftInput, TemplateInput, SendContactMessageInput, ContactsResult, ContactImportResult, ConversationResult, TemplatesResult, TemplateResult, CampaignsResult, CampaignResult, WorkspaceResult, WebsiteLeadCaptureResult, LeadRef, LeadContextResult, NextActionsResult, FollowUpInput, FollowUpResult, ActivityResult } from "./types.js";
 
 export interface ColdLeadsOptions {
   /** Secret API key (sk_…). Defaults to process.env.COLDLEADS_API_KEY. Not needed for agent onboarding. */
@@ -14,6 +14,12 @@ export interface ColdLeadsOptions {
   maxRetries?: number;
   /** Custom fetch implementation (tests, proxies). Defaults to the global fetch. */
   fetch?: FetchLike;
+  /**
+   * Use the no-key demo (https://coldleads.app/api/mcp/demo) for `client.crm`: the same tools over sample data,
+   * never sends e-mail, no credits, no API key. The SDK keeps the MCP session (24 hours from its start) for you.
+   * Only `client.crm` works in demo mode; the REST resources (verify, find, leads, credits) need a key.
+   */
+  demo?: boolean;
 }
 
 const env = (name: string): string | undefined => (typeof process !== "undefined" ? process.env?.[name] : undefined);
@@ -54,6 +60,8 @@ export class ColdLeads {
   readonly credits: CreditsResource;
   readonly agent: AgentResource;
   readonly crm: CrmResource;
+  /** true when created with `demo: true` (crm tools over sample data, nothing is sent). */
+  readonly demo: boolean;
 
   constructor(options: ColdLeadsOptions = {}) {
     const fetchImpl = options.fetch ?? ((input: string, init: RequestInit) => globalThis.fetch(input, init));
@@ -69,7 +77,8 @@ export class ColdLeads {
     this.leads = new LeadsResource(this.http);
     this.credits = new CreditsResource(this.http);
     this.agent = new AgentResource(this.http, (key) => this.setApiKey(key));
-    this.crm = new CrmResource(this.http);
+    this.crm = new CrmResource(this.http, options.demo === true);
+    this.demo = options.demo === true;
   }
 
   /** Replace the API key (for example with the key returned by agent onboarding). */
@@ -91,13 +100,41 @@ function leadArgs(ref: LeadRef): Record<string, string> {
 
 export class CrmResource {
   private sequence = 0;
-  constructor(private readonly http: HttpClient) {}
+  private session: string | null = null;
+  constructor(private readonly http: HttpClient, private readonly demo = false) {}
+
+  private get path(): string {
+    return this.demo ? "/api/mcp/demo" : "/api/mcp";
+  }
+
+  // Demo: the server keeps the sample workspace per MCP session, so initialize once and send Mcp-Session-Id.
+  private async initialize(signal?: AbortSignal): Promise<void> {
+    await this.http.request("POST", this.path, {
+      body: { jsonrpc: "2.0", id: ++this.sequence, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "coldleads-node", version: VERSION } } },
+      auth: false, retry: "never", signal, onHeaders: (h) => { this.session = h.get("mcp-session-id") ?? this.session; },
+    });
+  }
+
+  private async rpc<R>(method: string, params: Record<string, unknown>, signal?: AbortSignal, retried = false): Promise<R> {
+    if (this.demo && !this.session) await this.initialize(signal);
+    try {
+      return await this.http.request<R>("POST", this.path, {
+        body: { jsonrpc: "2.0", id: ++this.sequence, method, params },
+        auth: !this.demo, retry: "never", signal,
+        ...(this.demo && this.session ? { headers: { "Mcp-Session-Id": this.session } } : {}),
+      });
+    } catch (e) {
+      // expired demo session (24 h): start a new one once; its sample data starts fresh
+      if (this.demo && !retried && e instanceof ColdLeadsError && e.status === 404) {
+        this.session = null;
+        return this.rpc<R>(method, params, signal, true);
+      }
+      throw e;
+    }
+  }
 
   private async call<T extends object = Record<string, unknown>>(tool: string, args: Record<string, unknown> = {}, options: { signal?: AbortSignal } = {}): Promise<McpResult<T>> {
-    const rpc = await this.http.request<{ result?: { content?: Array<{ type: string; text?: string }>; isError?: boolean }; error?: { message?: string } }>("POST", "/api/mcp", {
-      body: { jsonrpc: "2.0", id: ++this.sequence, method: "tools/call", params: { name: tool, arguments: args } },
-      retry: "never", signal: options.signal,
-    });
+    const rpc = await this.rpc<{ result?: { content?: Array<{ type: string; text?: string }>; isError?: boolean }; error?: { message?: string } }>("tools/call", { name: tool, arguments: args }, options.signal);
     if (rpc.error) throw new ColdLeadsError(rpc.error.message ?? "mcp_error", { status: 0, code: "mcp_error" });
     const block = rpc.result?.content?.find((item) => item.type === "text" && item.text);
     let result: Record<string, unknown> = {};
@@ -109,6 +146,26 @@ export class CrmResource {
     return result as McpResult<T>;
   }
 
+  /** Every tool with its JSON input schema, side effect, cost and whether a human must approve it (for agent frameworks). */
+  async tools(options: { signal?: AbortSignal } = {}): Promise<CrmTool[]> {
+    const rpc = await this.rpc<{ result?: { tools?: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown>; _meta?: Record<string, unknown> }> } }>("tools/list", {}, options.signal);
+    return (rpc.result?.tools ?? []).map((t) => ({
+      name: t.name,
+      description: t.description ?? "",
+      inputSchema: t.inputSchema ?? { type: "object" },
+      sideEffect: (t._meta?.["coldleads/side_effect"] as CrmTool["sideEffect"]) ?? "read",
+      cost: (t._meta?.["coldleads/cost"] as string) ?? "free",
+      requiresApproval: t._meta?.["coldleads/requires_approval"] === true,
+    }));
+  }
+  /** Call any tool by its MCP name with MCP arguments (snake_case), e.g. from an agent framework's tool call. */
+  callTool<T extends object = Record<string, unknown>>(name: string, args: Record<string, unknown> = {}, options: { signal?: AbortSignal } = {}) {
+    return this.call<T>(requireString(name, "name"), args, options);
+  }
+  /** Verify one address through the MCP tool (1 credit with a key; sample results in demo mode). */
+  verifyEmail(email: string, options: { signal?: AbortSignal } = {}) {
+    return this.call<McpVerifyResult>("verify_email", { email: requireString(email, "email") }, options);
+  }
   /** List/filter contacts already in your own workspace. */
   contacts(input: { query?: string; stage?: string; tag?: string; limit?: number } = {}, options: { signal?: AbortSignal } = {}) {
     return this.call<ContactsResult>("list_contacts", input, options);

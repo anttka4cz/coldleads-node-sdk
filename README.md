@@ -28,6 +28,19 @@ CommonJS: `const { ColdLeads } = require("@coldleads/sdk");`
 
 You need a **secret API key** (`sk_…`) from **Cold Leads → Settings → API keys**. The API is included in the **Business** plan (10,000 verification and API credits a month; extra packs available). No key yet? See [Agent onboarding](#agent-onboarding-no-key-yet).
 
+## Try it without a key (demo mode)
+
+```ts
+import ColdLeads from "@coldleads/sdk";
+
+const demo = new ColdLeads({ demo: true });
+await demo.crm.importContacts({ contacts: [{ email: "jana.dvorak@ridgeline.example", name: "Jana Dvořák", tags: "q4" }] });
+const v = await demo.crm.verifyEmail("jana.dvorak@ridgeline.example"); // sample result: valid, smtp_unreachable
+const queue = await demo.crm.nextActions();                              // sample replies and due follow-ups
+```
+
+`demo: true` points `client.crm` at `https://coldleads.app/api/mcp/demo`: the same tools over a sample workspace, no API key, no credits, and nothing is ever sent (`sendMessage` and `launchCampaign` return `demo_not_sent` after confirmation). The SDK keeps the MCP session for you; a session lasts 24 hours from its start and holds at most 10 contacts (including 4 samples), 1 template of your own and 1 campaign draft. Only `client.crm` works in demo mode; `verify`, `find`, `leads` and `credits` need a key.
+
 ## Usage
 
 ### Verify an address (1 credit)
@@ -69,6 +82,16 @@ const reachable = leads.filter((l) => !l.do_not_contact);
 ```
 
 Leads come from your own Cold Leads workspace; Cold Leads has no third-party lead database.
+
+### Tools for agent frameworks
+
+```ts
+const tools = await coldleads.crm.tools();
+// [{ name, description, inputSchema, sideEffect: "read" | "write" | "external_side_effect", cost, requiresApproval }]
+const result = await coldleads.crm.callTool("get_sales_next_actions", { limit: 10 });
+```
+
+`tools()` returns every Cold Leads tool with its JSON schema, so you can hand them to Claude, OpenAI or any agent framework, and `callTool()` runs the call the model asked for. Gate tools with `requiresApproval: true` (sending e-mail, launching a campaign) behind a human confirmation. `crm.verifyEmail(email)` is the MCP twin of `verify.email` (1 credit with a key).
 
 ### Contacts, conversations, templates and campaigns
 
