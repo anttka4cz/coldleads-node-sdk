@@ -53,4 +53,12 @@ describe("demo mode", () => {
     await h.client.crm.callTool("get_sales_next_actions", { limit: 5 });
     expect(h.calls.at(-1)!.body.params).toMatchObject({ name: "get_sales_next_actions" });
   });
+
+  it("does not re-initialize on every call when the server issues no session", async () => {
+    const h = setup(async (_u, init) => (JSON.parse(String(init.body)).method === "initialize" ? rpcResult({}) : rpcResult(toolText({ status: "success", count: 0, contacts: [] }))));
+    await h.client.crm.contacts();
+    await h.client.crm.contacts();
+    expect(h.calls.map((c) => c.body.method)).toEqual(["initialize", "tools/call", "tools/call"]);
+    expect(h.calls.every((c) => header(c.init, "Mcp-Session-Id") === undefined)).toBe(true);
+  });
 });

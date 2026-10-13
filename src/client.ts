@@ -101,6 +101,7 @@ function leadArgs(ref: LeadRef): Record<string, string> {
 export class CrmResource {
   private sequence = 0;
   private session: string | null = null;
+  private initialized = false;
   constructor(private readonly http: HttpClient, private readonly demo = false) {}
 
   private get path(): string {
@@ -113,10 +114,12 @@ export class CrmResource {
       body: { jsonrpc: "2.0", id: ++this.sequence, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "coldleads-node", version: VERSION } } },
       auth: false, retry: "never", signal, onHeaders: (h) => { this.session = h.get("mcp-session-id") ?? this.session; },
     });
+    this.initialized = true;
   }
 
   private async rpc<R>(method: string, params: Record<string, unknown>, signal?: AbortSignal, retried = false): Promise<R> {
-    if (this.demo && !this.session) await this.initialize(signal);
+    // without a session id (server refused a new session) calls still work, each on fresh sample data
+    if (this.demo && !this.initialized) await this.initialize(signal);
     try {
       return await this.http.request<R>("POST", this.path, {
         body: { jsonrpc: "2.0", id: ++this.sequence, method, params },
@@ -127,6 +130,7 @@ export class CrmResource {
       // expired demo session (24 h): start a new one once; its sample data starts fresh
       if (this.demo && !retried && e instanceof ColdLeadsError && e.status === 404) {
         this.session = null;
+        this.initialized = false;
         return this.rpc<R>(method, params, signal, true);
       }
       throw e;
