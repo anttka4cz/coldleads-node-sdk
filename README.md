@@ -1,6 +1,6 @@
 # Cold Leads Node.js SDK
 
-[![npm](https://img.shields.io/npm/v/@coldleads/sdk)](https://www.npmjs.com/package/@coldleads/sdk) [![npm downloads](https://img.shields.io/npm/dm/@coldleads/sdk)](https://www.npmjs.com/package/@coldleads/sdk) [![CI](https://github.com/anttka4cz/coldleads-node-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/anttka4cz/coldleads-node-sdk/actions/workflows/ci.yml) [![license](https://img.shields.io/npm/l/@coldleads/sdk)](LICENSE) [![node](https://img.shields.io/node/v/@coldleads/sdk)](package.json)
+[![npm](https://img.shields.io/npm/v/@coldleads/sdk)](https://www.npmjs.com/package/@coldleads/sdk) [![npm downloads](https://img.shields.io/npm/dm/@coldleads/sdk)](https://www.npmjs.com/package/@coldleads/sdk) [![license](https://img.shields.io/npm/l/@coldleads/sdk)](LICENSE) [![node](https://img.shields.io/node/v/@coldleads/sdk)](package.json)
 
 Official Node.js client for the [Cold Leads](https://coldleads.app/developers?utm_source=github&utm_medium=readme&utm_campaign=node-sdk) API and CRM: e-mail verification, an e-mail finder (name + domain), contact import and management, conversations, templates, campaigns, the reply and follow-up queue, website capture, and AI-agent onboarding.
 
